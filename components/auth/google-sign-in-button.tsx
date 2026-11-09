@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 import { LoaderCircle } from 'lucide-react';
 import { authClient } from '../../lib/auth-client';
@@ -45,12 +46,13 @@ export function GoogleSignInButton() {
         {isSigningIn ? (
           <LoaderCircle aria-hidden="true" size={18} className="animate-spin" />
         ) : (
-          <span
-            aria-hidden="true"
-            className="flex size-5 items-center justify-center font-semibold text-primary"
-          >
-            G
-          </span>
+          <Image
+            src="/google-symbol.png"
+            alt=""
+            width={20}
+            height={20}
+            className="size-5 object-contain"
+          />
         )}
 
         {isSigningIn ? 'Connecting to Google' : 'Continue with Google'}

@@ -1,6 +1,7 @@
+import Image from 'next/image';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { BookOpenText, ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import { auth } from '../../lib/auth';
 import { GoogleSignInButton } from '../../components/auth/google-sign-in-button';
 
@@ -19,8 +20,14 @@ export default async function SignInPage() {
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
       <section className="w-full max-w-sm">
         <div className="mb-8 flex items-center justify-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-md bg-primary text-white">
-            <BookOpenText size={22} />
+          <span className="flex size-10 items-center justify-center rounded-md bg-surface-muted">
+            <Image
+              src="/brand-icon.png"
+              alt=""
+              width={32}
+              height={32}
+              priority
+            />
           </span>
 
           <span className="text-lg font-semibold">Knowledge AI</span>

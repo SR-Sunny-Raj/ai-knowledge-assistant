@@ -1,10 +1,10 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  BookOpenText,
   Files,
   LayoutDashboard,
   MessageSquareText,
@@ -28,6 +28,7 @@ const navigation = [
 
 export function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const isSettingsActive = pathname.startsWith('/settings');
 
   useEffect(() => {
     if (!isMobileOpen) {
@@ -74,8 +75,14 @@ export function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
             onClick={onClose}
             className="flex items-center gap-3 px-2"
           >
-            <span className="flex size-9 items-center justify-center rounded-md bg-primary text-white">
-              <BookOpenText size={20} />
+            <span className="flex size-9 items-center justify-center rounded-md bg-surface-muted">
+              <Image
+                src="/brand-icon.png"
+                alt=""
+                width={28}
+                height={28}
+                priority
+              />
             </span>
 
             <span className="font-semibold text-foreground">Knowledge AI</span>
@@ -131,13 +138,33 @@ export function Sidebar({ isMobileOpen, onClose }: SidebarProps) {
         <Link
           href="/settings"
           onClick={onClose}
-          className="mt-4 flex h-10 shrink-0 items-center gap-3 rounded-md px-3 text-sm font-medium text-muted transition-colors hover:bg-surface-muted hover:text-foreground"
+          aria-current={isSettingsActive ? 'page' : undefined}
+          className={`mt-4 flex h-10 shrink-0 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors ${
+            isSettingsActive
+              ? 'bg-surface-muted text-foreground'
+              : 'text-muted hover:bg-surface-muted hover:text-foreground'
+          }`}
         >
           <Settings size={18} />
           Settings
         </Link>
 
         <AccountMenu onNavigate={onClose} />
+
+        <footer className="mt-4 shrink-0 text-center text-[11px] leading-5 text-muted">
+          <p>Crafted with ❤️ by Sunny</p>
+          <p>
+            Reach out to me at{' '}
+            <a
+              href="https://sraj.netlify.app"
+              target="_blank"
+              rel="noreferrer"
+              className="whitespace-nowrap underline decoration-border underline-offset-2 transition-colors hover:text-foreground"
+            >
+              sraj.netlify.app
+            </a>
+          </p>
+        </footer>
       </aside>
     </>
   );
