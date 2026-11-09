@@ -1,7 +1,8 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { Menu } from 'lucide-react';
+import { Menu, UserRound } from 'lucide-react';
+import { authClient } from '../../lib/auth-client';
 
 type HeaderProps = Readonly<{
   isMenuOpen: boolean;
@@ -15,8 +16,19 @@ const pageTitles: Record<string, string> = {
   '/settings': 'Settings',
 };
 
+function getUserInitials(name: string, email: string) {
+  const nameParts = name.trim().split(/\s+/).filter(Boolean);
+
+  if (nameParts.length > 1) {
+    return `${nameParts[0][0]}${nameParts.at(-1)?.[0] ?? ''}`.toUpperCase();
+  }
+
+  return (nameParts[0]?.[0] ?? email.trim()[0] ?? '').toUpperCase();
+}
+
 export function Header({ isMenuOpen, onMenuClick }: HeaderProps) {
   const pathname = usePathname();
+  const { data: session, isPending } = authClient.useSession();
   const title = pathname.startsWith('/chat')
     ? 'AI Chat'
     : pathname.startsWith('/documents')
@@ -48,10 +60,19 @@ export function Header({ isMenuOpen, onMenuClick }: HeaderProps) {
       </div>
 
       <div
-        aria-label="User profile"
+        aria-label={
+          session ? `User profile: ${session.user.name}` : 'User profile'
+        }
+        title={session?.user.name}
         className="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-white"
       >
-        SR
+        {isPending ? (
+          <span className="size-4 animate-pulse rounded-full bg-white/40" />
+        ) : session ? (
+          getUserInitials(session.user.name, session.user.email)
+        ) : (
+          <UserRound aria-hidden="true" size={17} />
+        )}
       </div>
     </header>
   );
