@@ -2,14 +2,16 @@ import Image from 'next/image';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { ShieldCheck } from 'lucide-react';
-import { auth } from '../../lib/auth';
+import { getAuth } from '../../lib/auth';
 import { GoogleSignInButton } from '../../components/auth/google-sign-in-button';
 
 export const instant = false;
 
 export default async function SignInPage() {
+  const requestHeaders = await headers();
+  const auth = await getAuth();
   const session = await auth.api.getSession({
-    headers: await headers(),
+    headers: requestHeaders,
   });
 
   if (session) {

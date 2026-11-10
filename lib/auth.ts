@@ -3,7 +3,8 @@ import 'server-only';
 import { betterAuth } from 'better-auth';
 import { mongodbAdapter } from '@better-auth/mongo-adapter';
 import { nextCookies } from 'better-auth/next-js';
-import { authDatabase, mongoClient } from './mongodb-client';
+import type { MongoClient } from 'mongodb';
+import { connectToDatabase } from './db';
 
 function requireEnvironmentVariable(name: string) {
   const value = process.env[name];
@@ -15,19 +16,38 @@ function requireEnvironmentVariable(name: string) {
   return value;
 }
 
-export const auth = betterAuth({
-  baseURL: requireEnvironmentVariable('BETTER_AUTH_URL'),
+function createAuth(client: MongoClient) {
+  return betterAuth({
+    baseURL: requireEnvironmentVariable('BETTER_AUTH_URL'),
 
-  database: mongodbAdapter(authDatabase, {
-    client: mongoClient,
-  }),
+    database: mongodbAdapter(client.db(), {
+      client,
+    }),
 
-  socialProviders: {
-    google: {
-      clientId: requireEnvironmentVariable('GOOGLE_CLIENT_ID'),
-      clientSecret: requireEnvironmentVariable('GOOGLE_CLIENT_SECRET'),
+    socialProviders: {
+      google: {
+        clientId: requireEnvironmentVariable('GOOGLE_CLIENT_ID'),
+        clientSecret: requireEnvironmentVariable('GOOGLE_CLIENT_SECRET'),
+      },
     },
-  },
 
-  plugins: [nextCookies()],
-});
+    plugins: [nextCookies()],
+  });
+}
+
+type Auth = ReturnType<typeof createAuth>;
+
+let cachedAuth: Auth | null = null;
+let cachedAuthClient: MongoClient | null = null;
+
+export async function getAuth() {
+  const database = await connectToDatabase();
+  const client = database.connection.getClient();
+
+  if (!cachedAuth || cachedAuthClient !== client) {
+    cachedAuth = createAuth(client);
+    cachedAuthClient = client;
+  }
+
+  return cachedAuth;
+}

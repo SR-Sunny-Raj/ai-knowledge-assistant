@@ -23,8 +23,13 @@ async function connectToDatabase() {
     throw new Error('MONGODB_URI is missing from .env.local');
   }
 
-  if (cached.conn) {
+  if (cached.conn && mongoose.connection.readyState === 1) {
     return cached.conn;
+  }
+
+  if (mongoose.connection.readyState === 0) {
+    cached.conn = null;
+    cached.promise = null;
   }
 
   if (!cached.promise) {

@@ -2,7 +2,7 @@ import 'server-only';
 
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { auth } from './auth';
+import { getAuth } from './auth';
 
 export type CurrentUser = {
   id: string;
@@ -12,8 +12,10 @@ export type CurrentUser = {
 };
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
+  const requestHeaders = await headers();
+  const auth = await getAuth();
   const session = await auth.api.getSession({
-    headers: await headers(),
+    headers: requestHeaders,
   });
 
   if (!session) {
