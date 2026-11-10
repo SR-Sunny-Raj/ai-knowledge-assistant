@@ -73,6 +73,10 @@ export function ChatComposer({
           )}
         </button>
       </div>
+
+      <p className="mt-2 text-center text-xs text-muted">
+        Knowledge AI can make mistakes. Check important info.
+      </p>
     </form>
   );
 }
