@@ -1,8 +1,9 @@
 'use client';
 
 import { type ChangeEvent, type FormEvent, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FileText, LoaderCircle, Upload } from 'lucide-react';
+import { ArrowRight, FileText, LoaderCircle, Upload } from 'lucide-react';
 
 type Feedback = {
   type: 'success' | 'error';
@@ -180,6 +181,18 @@ export function UploadForm() {
           </>
         )}
       </button>
+
+      <Link
+        href="/chat"
+        aria-disabled={isUploading}
+        tabIndex={isUploading ? -1 : undefined}
+        className={`mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-white transition-colors hover:bg-primary-hover ${
+          isUploading ? 'pointer-events-none opacity-50' : ''
+        }`}
+      >
+        Start a conversation
+        <ArrowRight size={16} />
+      </Link>
     </form>
   );
 }
