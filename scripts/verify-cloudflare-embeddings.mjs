@@ -55,7 +55,9 @@ try {
   const database = client.db();
   const chunks = database.collection('documentchunks');
   const total = await chunks.countDocuments();
-  const staged = await chunks.countDocuments({ cloudflareEmbedding: { $exists: true } });
+  const staged = await chunks.countDocuments({
+    cloudflareEmbedding: { $exists: true },
+  });
   const [embeddingSummary] = await chunks
     .aggregate([
       {
@@ -109,7 +111,9 @@ try {
   );
 
   if (!source) {
-    throw new Error('No embedded chunk is available for retrieval verification.');
+    throw new Error(
+      'No embedded chunk is available for retrieval verification.',
+    );
   }
 
   const { embedding, status } = await embed(source.content);

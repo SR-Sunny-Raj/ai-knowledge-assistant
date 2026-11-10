@@ -89,20 +89,20 @@ client for users and sessions.
 
 ## Environment Variables
 
-| Variable                 | Required | Purpose                                                 |
-| ------------------------ | -------- | ------------------------------------------------------- |
-| `MONGODB_URI`            | Yes      | Atlas connection string, including the database name    |
-| `BETTER_AUTH_SECRET`     | Yes      | Secret used to protect authentication state             |
-| `BETTER_AUTH_URL`        | Yes      | Public application origin, without a trailing slash     |
-| `GOOGLE_CLIENT_ID`       | Yes      | Google OAuth client ID                                  |
-| `GOOGLE_CLIENT_SECRET`   | Yes      | Google OAuth client secret                              |
-| `GEMINI_API_KEY`         | Yes      | Gemini API key                                          |
-| `GEMINI_MODEL`           | No       | Primary generation model                                |
-| `GEMINI_FALLBACK_MODEL`  | No       | Fallback generation model                               |
-| `CLOUDFLARE_ACCOUNT_ID`  | Yes      | Cloudflare account used for Workers AI embeddings       |
-| `CLOUDFLARE_API_TOKEN`   | Yes      | Token with Workers AI inference permission              |
-| `CLOUDFLARE_EMBEDDING_MODEL` | No   | Defaults to `@cf/baai/bge-base-en-v1.5`                 |
-| `MIN_RETRIEVAL_SCORE`    | No       | Similarity threshold from `0` to `1`; defaults to `0.7` |
+| Variable                     | Required | Purpose                                                 |
+| ---------------------------- | -------- | ------------------------------------------------------- |
+| `MONGODB_URI`                | Yes      | Atlas connection string, including the database name    |
+| `BETTER_AUTH_SECRET`         | Yes      | Secret used to protect authentication state             |
+| `BETTER_AUTH_URL`            | Yes      | Public application origin, without a trailing slash     |
+| `GOOGLE_CLIENT_ID`           | Yes      | Google OAuth client ID                                  |
+| `GOOGLE_CLIENT_SECRET`       | Yes      | Google OAuth client secret                              |
+| `GEMINI_API_KEY`             | Yes      | Gemini API key                                          |
+| `GEMINI_MODEL`               | No       | Primary generation model                                |
+| `GEMINI_FALLBACK_MODEL`      | No       | Fallback generation model                               |
+| `CLOUDFLARE_ACCOUNT_ID`      | Yes      | Cloudflare account used for Workers AI embeddings       |
+| `CLOUDFLARE_API_TOKEN`       | Yes      | Token with Workers AI inference permission              |
+| `CLOUDFLARE_EMBEDDING_MODEL` | No       | Defaults to `@cf/baai/bge-base-en-v1.5`                 |
+| `MIN_RETRIEVAL_SCORE`        | No       | Similarity threshold from `0` to `1`; defaults to `0.7` |
 
 Never commit `.env.local` or production credentials.
 

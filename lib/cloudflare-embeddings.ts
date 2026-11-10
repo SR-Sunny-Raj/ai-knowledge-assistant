@@ -61,16 +61,18 @@ async function embedBatch(texts: string[]) {
       },
       body: JSON.stringify({ text: texts, pooling: 'cls' }),
     });
-    const body = (await response.json().catch(() => null)) as
-      | CloudflareResponse
-      | null;
+    const body = (await response
+      .json()
+      .catch(() => null)) as CloudflareResponse | null;
 
     if (response.ok && body?.success && body.result?.data) {
       const embeddings = body.result.data;
 
       if (
         embeddings.length !== texts.length ||
-        embeddings.some((embedding) => embedding.length !== EMBEDDING_DIMENSIONS)
+        embeddings.some(
+          (embedding) => embedding.length !== EMBEDDING_DIMENSIONS,
+        )
       ) {
         throw new Error('Cloudflare returned invalid embedding dimensions.');
       }
@@ -97,7 +99,9 @@ export async function embedDocumentChunks(texts: string[]) {
   const embeddings: number[][] = [];
 
   for (let start = 0; start < texts.length; start += EMBEDDING_BATCH_SIZE) {
-    embeddings.push(...(await embedBatch(texts.slice(start, start + EMBEDDING_BATCH_SIZE))));
+    embeddings.push(
+      ...(await embedBatch(texts.slice(start, start + EMBEDDING_BATCH_SIZE))),
+    );
   }
 
   return embeddings;

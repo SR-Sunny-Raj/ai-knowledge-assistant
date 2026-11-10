@@ -1,6 +1,7 @@
 import { MongoClient } from 'mongodb';
 
-const MODEL = process.env.CLOUDFLARE_EMBEDDING_MODEL ?? '@cf/baai/bge-base-en-v1.5';
+const MODEL =
+  process.env.CLOUDFLARE_EMBEDDING_MODEL ?? '@cf/baai/bge-base-en-v1.5';
 const DIMENSIONS = 768;
 const BATCH_SIZE = 100;
 const STAGING_FIELD = 'cloudflareEmbedding';
@@ -39,7 +40,8 @@ async function embed(texts) {
     !Array.isArray(embeddings) ||
     embeddings.length !== texts.length ||
     embeddings.some(
-      (embedding) => !Array.isArray(embedding) || embedding.length !== DIMENSIONS,
+      (embedding) =>
+        !Array.isArray(embedding) || embedding.length !== DIMENSIONS,
     )
   ) {
     const message =
@@ -80,7 +82,9 @@ try {
       })),
     );
 
-    console.log(`Staged ${Math.min(start + batch.length, pending.length)} of ${pending.length}.`);
+    console.log(
+      `Staged ${Math.min(start + batch.length, pending.length)} of ${pending.length}.`,
+    );
   }
 
   const validStaged = await chunks.countDocuments({
@@ -99,7 +103,9 @@ try {
     { $unset: STAGING_FIELD },
   ]);
 
-  console.log(`Activated Cloudflare embeddings for ${result.modifiedCount} chunks.`);
+  console.log(
+    `Activated Cloudflare embeddings for ${result.modifiedCount} chunks.`,
+  );
 } finally {
   await client.close();
 }

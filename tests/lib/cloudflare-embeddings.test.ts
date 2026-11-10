@@ -36,11 +36,13 @@ describe('Cloudflare embeddings', () => {
   });
 
   it('batches document chunks in groups of 100', async () => {
-    const fetchMock = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
-      const request = JSON.parse(String(init?.body)) as { text: string[] };
+    const fetchMock = vi.fn(
+      async (_input: string | URL | Request, init?: RequestInit) => {
+        const request = JSON.parse(String(init?.body)) as { text: string[] };
 
-      return cloudflareResponse(request.text.map(() => embedding));
-    });
+        return cloudflareResponse(request.text.map(() => embedding));
+      },
+    );
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await embedDocumentChunks(
