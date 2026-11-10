@@ -48,11 +48,9 @@ export function ChatInterface({
 
   return (
     <section className="mx-auto flex h-[calc(100dvh-7rem)] w-full max-w-5xl flex-col overflow-hidden rounded-lg border border-border bg-surface lg:h-[calc(100dvh-8rem)]">
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-border px-4 sm:px-5">
-        <div>
-          <h2 className="max-w-xl truncate font-semibold text-foreground">
-            {title}
-          </h2>
+      <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border px-4 sm:px-5">
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate font-semibold text-foreground">{title}</h2>
           <p className="mt-0.5 text-xs text-muted">
             Answers are grounded in your uploaded documents
           </p>
@@ -64,7 +62,7 @@ export function ChatInterface({
           disabled={messages.length === 0 || isSubmitting}
           aria-label="Start new chat"
           title="Start new chat"
-          className="flex size-9 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
         >
           <SquarePen size={17} />
         </button>
