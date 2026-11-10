@@ -4,7 +4,11 @@ import {
   generateGroundedAnswer,
   type ConversationTurn,
 } from '../../../lib/gemini';
-import { retrieveRelevantChunks } from '../../../lib/retrieve-context';
+import {
+  retrieveDocumentPages,
+  retrieveRelevantChunks,
+} from '../../../lib/retrieve-context';
+import { requestsWholeDocument } from '../../../lib/retrieval-scope';
 import { connectToDatabase } from '../../../lib/db';
 import { getCurrentUser } from '../../../lib/session';
 import { ConversationModel } from '../../../models/conversation';
@@ -120,7 +124,20 @@ export async function POST(request: Request) {
       }));
 
     const retrievalQuery = buildRetrievalQuery(question, history);
-    const chunks = await retrieveRelevantChunks(user.id, retrievalQuery, 5);
+    const relevantChunks = await retrieveRelevantChunks(
+      user.id,
+      retrievalQuery,
+      5,
+    );
+    const topChunk = relevantChunks[0];
+    const chunks =
+      topChunk && requestsWholeDocument(question)
+        ? await retrieveDocumentPages(
+            user.id,
+            topChunk.documentId,
+            topChunk.score,
+          )
+        : relevantChunks;
 
     const answer =
       chunks.length === 0

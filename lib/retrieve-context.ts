@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { Types } from 'mongoose';
 import { connectToDatabase } from './db';
 import { embedQuery } from './cloudflare-embeddings';
 import { DocumentChunkModel } from '../models/document-chunk';
@@ -12,6 +13,13 @@ export type RetrievedChunk = {
   content: string;
   pageNumber: number | null;
   score: number;
+  documentId: string;
+  fileName: string;
+};
+
+type StoredDocumentChunk = {
+  content: string;
+  pageNumber: number | null;
   documentId: string;
   fileName: string;
 };
@@ -149,4 +157,88 @@ export async function retrieveRelevantChunks(
   ]);
 
   return selectDiverseChunks(candidates, resultLimit);
+}
+
+export async function retrieveDocumentPages(
+  ownerId: string,
+  documentId: string,
+  relevanceScore: number,
+): Promise<RetrievedChunk[]> {
+  if (!ownerId || !Types.ObjectId.isValid(documentId)) {
+    throw new Error('A valid owned document is required for retrieval.');
+  }
+
+  await connectToDatabase();
+
+  const chunks = await DocumentChunkModel.aggregate<StoredDocumentChunk>([
+    {
+      $match: {
+        ownerId,
+        documentId: new Types.ObjectId(documentId),
+      },
+    },
+    {
+      $lookup: {
+        from: 'documents',
+        let: {
+          matchedDocumentId: '$documentId',
+        },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  {
+                    $eq: ['$_id', '$$matchedDocumentId'],
+                  },
+                  {
+                    $eq: ['$ownerId', ownerId],
+                  },
+                ],
+              },
+            },
+          },
+        ],
+        as: 'document',
+      },
+    },
+    {
+      $unwind: '$document',
+    },
+    {
+      $sort: {
+        pageNumber: 1,
+        chunkIndex: 1,
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        content: 1,
+        pageNumber: 1,
+        documentId: {
+          $toString: '$documentId',
+        },
+        fileName: '$document.fileName',
+      },
+    },
+  ]);
+
+  const pages = new Map<number | null, RetrievedChunk>();
+
+  for (const chunk of chunks) {
+    const existingPage = pages.get(chunk.pageNumber);
+
+    if (existingPage) {
+      existingPage.content += `\n${chunk.content}`;
+      continue;
+    }
+
+    pages.set(chunk.pageNumber, {
+      ...chunk,
+      score: relevanceScore,
+    });
+  }
+
+  return [...pages.values()];
 }
