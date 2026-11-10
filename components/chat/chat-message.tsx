@@ -6,6 +6,7 @@ import { Bot, FileText, User } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { ChatMessage as ChatMessageType } from '../../types/chat';
+import { groupChatSources } from '../../lib/group-chat-sources';
 
 type ChatMessageProps = Readonly<{
   message: ChatMessageType;
@@ -14,6 +15,7 @@ type ChatMessageProps = Readonly<{
 export function ChatMessage({ message }: ChatMessageProps) {
   const pathname = usePathname();
   const isUser = message.role === 'user';
+  const sourceGroups = groupChatSources(message.sources ?? []);
 
   return (
     <article
@@ -63,26 +65,53 @@ export function ChatMessage({ message }: ChatMessageProps) {
 
         {!isUser && message.sources && message.sources.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
-            {message.sources.map((source) => {
-              const searchParams = new URLSearchParams({ returnTo: pathname });
+            {sourceGroups.flatMap((group) => {
+              const citations = group.visibleSources.map((source) => {
+                const searchParams = new URLSearchParams({
+                  returnTo: pathname,
+                });
 
-              if (source.pageNumber) {
-                searchParams.set('page', source.pageNumber.toString());
+                if (source.pageNumber) {
+                  searchParams.set('page', source.pageNumber.toString());
+                }
+
+                return (
+                  <Link
+                    key={`${source.number}-${source.documentId}`}
+                    href={`/documents/${source.documentId}?${searchParams.toString()}`}
+                    className="flex max-w-full items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1 text-xs text-muted transition-colors hover:border-primary hover:text-foreground"
+                  >
+                    <FileText size={13} className="shrink-0 text-primary" />
+                    <span className="truncate">
+                      [{source.number}] {source.fileName}
+                      {source.pageNumber ? ` · Page ${source.pageNumber}` : ''}
+                    </span>
+                  </Link>
+                );
+              });
+
+              if (group.hiddenSourceCount > 0) {
+                const searchParams = new URLSearchParams({
+                  returnTo: pathname,
+                });
+
+                citations.push(
+                  <Link
+                    key={`full-${group.documentId}`}
+                    href={`/documents/${group.documentId}?${searchParams.toString()}`}
+                    title={`Open the full ${group.fileName}`}
+                    className="flex max-w-full items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1 text-xs text-muted transition-colors hover:border-primary hover:text-foreground"
+                  >
+                    <FileText size={13} className="shrink-0 text-primary" />
+                    <span className="truncate">
+                      [PDF] {group.fileName} · View full file (+
+                      {group.hiddenSourceCount})
+                    </span>
+                  </Link>,
+                );
               }
 
-              return (
-                <Link
-                  key={`${source.number}-${source.documentId}`}
-                  href={`/documents/${source.documentId}?${searchParams.toString()}`}
-                  className="flex max-w-full items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1 text-xs text-muted transition-colors hover:border-primary hover:text-foreground"
-                >
-                  <FileText size={13} className="shrink-0 text-primary" />
-                  <span className="truncate">
-                    [{source.number}] {source.fileName}
-                    {source.pageNumber ? ` · Page ${source.pageNumber}` : ''}
-                  </span>
-                </Link>
-              );
+              return citations;
             })}
           </div>
         )}
