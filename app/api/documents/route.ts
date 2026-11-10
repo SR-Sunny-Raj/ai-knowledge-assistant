@@ -4,6 +4,7 @@ import { DocumentModel } from '../../../models/document';
 import { chunkPages } from '../../../lib/chunk-text';
 import { DocumentChunkModel } from '../../../models/document-chunk';
 import { getCurrentUser } from '../../../lib/session';
+import { createDocumentFingerprint } from '../../../lib/document-fingerprint';
 import {
   embedDocumentChunks,
   isEmbeddingRateLimitError,
@@ -21,7 +22,7 @@ function unauthorizedResponse() {
   );
 }
 
-async function processPdf(data: Uint8Array) {
+async function parsePdfIntoChunks(data: Uint8Array) {
   const { parsePdf } = await import('../../../lib/parse-pdf');
   const parsedPdf = await parsePdf(data);
   const chunks = chunkPages(parsedPdf.pages);
@@ -30,11 +31,16 @@ async function processPdf(data: Uint8Array) {
     throw new Error('The PDF does not contain extractable text.');
   }
 
-  const embeddings = await embedDocumentChunks(
-    chunks.map((chunk) => chunk.content),
-  );
+  return { parsedPdf, chunks };
+}
 
-  return { parsedPdf, chunks, embeddings };
+function isDuplicateKeyError(error: unknown) {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 11000
+  );
 }
 
 export async function GET() {
@@ -142,14 +148,49 @@ export async function POST(request: Request) {
       );
     }
 
-    let processedPdf: Awaited<ReturnType<typeof processPdf>>;
+    let processedPdf: Awaited<ReturnType<typeof parsePdfIntoChunks>>;
 
     try {
-      processedPdf = await processPdf(data);
+      processedPdf = await parsePdfIntoChunks(data);
     } catch (processingError) {
       console.error('PDF processing failed:', processingError);
 
-      const isRateLimited = isEmbeddingRateLimitError(processingError);
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'The PDF could not be processed.',
+        },
+        { status: 422 },
+      );
+    }
+
+    await connectToDatabase();
+    const contentHash = createDocumentFingerprint(processedPdf.chunks);
+    const existingDocument = await DocumentModel.exists({
+      ownerId: user.id,
+      contentHash,
+    });
+
+    if (existingDocument) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'This PDF has already been uploaded.',
+        },
+        { status: 409 },
+      );
+    }
+
+    let embeddings: number[][];
+
+    try {
+      embeddings = await embedDocumentChunks(
+        processedPdf.chunks.map((chunk) => chunk.content),
+      );
+    } catch (embeddingError) {
+      console.error('PDF embedding failed:', embeddingError);
+
+      const isRateLimited = isEmbeddingRateLimitError(embeddingError);
 
       return NextResponse.json(
         {
@@ -162,13 +203,12 @@ export async function POST(request: Request) {
       );
     }
 
-    await connectToDatabase();
-
     const document = await DocumentModel.create({
       ownerId: user.id,
       fileName: file.name,
       mimeType: file.type,
       fileSize: file.size,
+      contentHash,
       pageCount: processedPdf.parsedPdf.pageCount,
       status: 'ready',
       errorMessage: null,
@@ -180,7 +220,7 @@ export async function POST(request: Request) {
           ownerId: user.id,
           documentId: document._id,
           ...chunk,
-          embedding: processedPdf.embeddings[index],
+          embedding: embeddings[index],
         })),
       );
     } catch (storageError) {
@@ -212,6 +252,16 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    if (isDuplicateKeyError(error)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'This PDF has already been uploaded.',
+        },
+        { status: 409 },
+      );
+    }
+
     console.error('Document upload failed:', error);
 
     return NextResponse.json(

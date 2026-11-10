@@ -30,6 +30,12 @@ const documentSchema = new Schema(
       required: true,
       min: 0,
     },
+    contentHash: {
+      type: String,
+      minlength: 64,
+      maxlength: 64,
+      select: false,
+    },
     pageCount: {
       type: Number,
       default: 0,
@@ -51,6 +57,15 @@ const documentSchema = new Schema(
 );
 
 documentSchema.index({ ownerId: 1, createdAt: -1 });
+documentSchema.index(
+  { ownerId: 1, contentHash: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      contentHash: { $type: 'string' },
+    },
+  },
+);
 
 export type KnowledgeDocument = InferSchemaType<typeof documentSchema>;
 

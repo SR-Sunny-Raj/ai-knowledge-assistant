@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "migrate:cloudflare-embeddings": "node --env-file=.env.local scripts/reembed-cloudflare.mjs",
+    "migrate:document-fingerprints": "node --env-file=.env.local scripts/backfill-document-fingerprints.mjs",
     "verify:cloudflare-embeddings": "node --env-file=.env.local scripts/verify-cloudflare-embeddings.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
