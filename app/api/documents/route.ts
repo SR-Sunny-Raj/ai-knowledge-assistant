@@ -21,6 +21,23 @@ function unauthorizedResponse() {
   );
 }
 
+async function processPdf(data: Uint8Array, fileName: string) {
+  const { parsePdf } = await import('../../../lib/parse-pdf');
+  const parsedPdf = await parsePdf(data);
+  const chunks = chunkPages(parsedPdf.pages);
+
+  if (chunks.length === 0) {
+    throw new Error('The PDF does not contain extractable text.');
+  }
+
+  const embeddings = await embedDocumentChunks(
+    chunks.map((chunk) => chunk.content),
+    fileName,
+  );
+
+  return { parsedPdf, chunks, embeddings };
+}
+
 export async function GET() {
   const user = await getCurrentUser();
 
@@ -126,78 +143,14 @@ export async function POST(request: Request) {
       );
     }
 
-    await connectToDatabase();
-
-    const document = await DocumentModel.create({
-      ownerId: user.id,
-      fileName: file.name,
-      mimeType: file.type,
-      fileSize: file.size,
-      status: 'processing',
-    });
+    let processedPdf: Awaited<ReturnType<typeof processPdf>>;
 
     try {
-      const { parsePdf } = await import('../../../lib/parse-pdf');
-      const parsedPdf = await parsePdf(data);
-      const chunks = chunkPages(parsedPdf.pages);
-
-      if (chunks.length === 0) {
-        throw new Error('The PDF does not contain extractable text.');
-      }
-
-      const embeddings = await embedDocumentChunks(
-        chunks.map((chunk) => chunk.content),
-        file.name,
-      );
-
-      await DocumentChunkModel.insertMany(
-        chunks.map((chunk, index) => ({
-          ownerId: user.id,
-          documentId: document._id,
-          ...chunk,
-          embedding: embeddings[index],
-        })),
-      );
-
-      document.pageCount = parsedPdf.pageCount;
-      document.status = 'ready';
-      document.errorMessage = null;
-
-      await document.save();
-
-      return NextResponse.json(
-        {
-          success: true,
-          document: {
-            id: document._id.toString(),
-            fileName: document.fileName,
-            fileSize: document.fileSize,
-            pageCount: document.pageCount,
-            status: document.status,
-          },
-        },
-        { status: 201 },
-      );
+      processedPdf = await processPdf(data, file.name);
     } catch (processingError) {
       console.error('PDF processing failed:', processingError);
 
       const isRateLimited = isGeminiRateLimitError(processingError);
-
-      await DocumentChunkModel.deleteMany({
-        ownerId: user.id,
-        documentId: document._id,
-      }).catch((cleanupError) => {
-        console.error('Chunk cleanup failed:', cleanupError);
-      });
-
-      document.status = 'failed';
-      document.errorMessage = isRateLimited
-        ? 'Gemini embedding quota was temporarily exhausted.'
-        : processingError instanceof Error
-          ? processingError.message
-          : 'Unknown processing error';
-
-      await document.save();
 
       return NextResponse.json(
         {
@@ -209,6 +162,56 @@ export async function POST(request: Request) {
         { status: isRateLimited ? 429 : 422 },
       );
     }
+
+    await connectToDatabase();
+
+    const document = await DocumentModel.create({
+      ownerId: user.id,
+      fileName: file.name,
+      mimeType: file.type,
+      fileSize: file.size,
+      pageCount: processedPdf.parsedPdf.pageCount,
+      status: 'ready',
+      errorMessage: null,
+    });
+
+    try {
+      await DocumentChunkModel.insertMany(
+        processedPdf.chunks.map((chunk, index) => ({
+          ownerId: user.id,
+          documentId: document._id,
+          ...chunk,
+          embedding: processedPdf.embeddings[index],
+        })),
+      );
+    } catch (storageError) {
+      await Promise.allSettled([
+        DocumentChunkModel.deleteMany({
+          ownerId: user.id,
+          documentId: document._id,
+        }),
+        DocumentModel.deleteOne({
+          _id: document._id,
+          ownerId: user.id,
+        }),
+      ]);
+
+      throw storageError;
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        document: {
+          id: document._id.toString(),
+          fileName: document.fileName,
+          fileSize: document.fileSize,
+          pageCount: document.pageCount,
+          status: document.status,
+        },
+      },
+      { status: 201 },
+    );
   } catch (error) {
     console.error('Document upload failed:', error);
 
