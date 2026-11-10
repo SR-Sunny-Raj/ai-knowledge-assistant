@@ -74,10 +74,20 @@ export function UploadForm() {
         body: formData,
       });
 
-      const result = (await response.json()) as UploadResponse;
+      const result = await response
+        .json()
+        .then((body) => body as UploadResponse)
+        .catch(() => null);
 
       if (!response.ok) {
-        throw new Error(result.message ?? 'Upload failed.');
+        throw new Error(
+          result?.message ??
+            `Upload failed with server response ${response.status}. Please try again.`,
+        );
+      }
+
+      if (!result?.success) {
+        throw new Error('The server returned an invalid upload response.');
       }
 
       setFile(null);

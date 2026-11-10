@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '../../../lib/db';
 import { DocumentModel } from '../../../models/document';
 import { chunkPages } from '../../../lib/chunk-text';
-import { parsePdf } from '../../../lib/parse-pdf';
 import { DocumentChunkModel } from '../../../models/document-chunk';
 import { getCurrentUser } from '../../../lib/session';
 import {
@@ -138,6 +137,7 @@ export async function POST(request: Request) {
     });
 
     try {
+      const { parsePdf } = await import('../../../lib/parse-pdf');
       const parsedPdf = await parsePdf(data);
       const chunks = chunkPages(parsedPdf.pages);
 
