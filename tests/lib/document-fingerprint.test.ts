@@ -14,7 +14,9 @@ describe('createDocumentFingerprint', () => {
   });
 
   it('distinguishes content and chunk boundaries', () => {
-    expect(createDocumentFingerprint([{ content: 'ab' }, { content: 'c' }])).not.toBe(
+    expect(
+      createDocumentFingerprint([{ content: 'ab' }, { content: 'c' }]),
+    ).not.toBe(
       createDocumentFingerprint([{ content: 'a' }, { content: 'bc' }]),
     );
   });
