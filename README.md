@@ -8,7 +8,7 @@ generated with Gemini and include page-level links back to the source files.
 
 - Google OAuth authentication with database-backed sessions
 - Private document and conversation workspaces for every user
-- PDF validation, parsing, chunking, and Gemini embeddings
+- PDF validation, parsing, chunking, and Cloudflare Workers AI embeddings
 - MongoDB Atlas Vector Search with ownership filtering before ranking
 - Grounded Gemini answers with document and page citations
 - Persistent, searchable, renameable conversation history
@@ -24,7 +24,7 @@ flowchart LR
 		Browser --> Routes[App Router APIs]
 		Auth --> Mongo[(MongoDB Atlas)]
 		Routes --> PDF[PDF parser]
-		PDF --> Embed[Gemini embeddings]
+    PDF --> Embed[Cloudflare embeddings]
 		Embed --> Mongo
 		Routes --> Vector[Atlas Vector Search]
 		Vector --> Mongo
@@ -43,7 +43,7 @@ client for users and sessions.
 - TypeScript and Tailwind CSS 4
 - Better Auth with Google OAuth
 - MongoDB Atlas, Mongoose, and Atlas Vector Search
-- Google Gemini generation and embeddings
+- Cloudflare Workers AI embeddings and Google Gemini generation
 - Vitest
 
 ## Prerequisites
@@ -52,6 +52,7 @@ client for users and sessions.
 - A MongoDB Atlas cluster
 - A Google Cloud OAuth client
 - A Google Gemini API key
+- A Cloudflare account with a Workers AI API token
 
 ## Local Setup
 
@@ -96,9 +97,11 @@ client for users and sessions.
 | `GOOGLE_CLIENT_ID`       | Yes      | Google OAuth client ID                                  |
 | `GOOGLE_CLIENT_SECRET`   | Yes      | Google OAuth client secret                              |
 | `GEMINI_API_KEY`         | Yes      | Gemini API key                                          |
-| `GEMINI_EMBEDDING_MODEL` | No       | Defaults to `gemini-embedding-001`                      |
 | `GEMINI_MODEL`           | No       | Primary generation model                                |
 | `GEMINI_FALLBACK_MODEL`  | No       | Fallback generation model                               |
+| `CLOUDFLARE_ACCOUNT_ID`  | Yes      | Cloudflare account used for Workers AI embeddings       |
+| `CLOUDFLARE_API_TOKEN`   | Yes      | Token with Workers AI inference permission              |
+| `CLOUDFLARE_EMBEDDING_MODEL` | No   | Defaults to `@cf/baai/bge-base-en-v1.5`                 |
 | `MIN_RETRIEVAL_SCORE`    | No       | Similarity threshold from `0` to `1`; defaults to `0.7` |
 
 Never commit `.env.local` or production credentials.
@@ -140,6 +143,20 @@ Create an Atlas Vector Search index with these settings:
 
 The `ownerId` filter is part of the vector query, so another user's chunks are
 excluded before similarity ranking occurs.
+
+When switching an existing installation from Gemini embeddings, add the
+Cloudflare variables to `.env.local` and run the staged migration before
+deploying the provider change:
+
+```bash
+npm run migrate:cloudflare-embeddings
+npm run verify:cloudflare-embeddings
+```
+
+The command can be resumed safely. It stages every 768-dimensional BGE vector
+before replacing the active vectors, so retrieval never operates on a mixture
+of embedding models. The verification command checks every stored vector and
+runs an ownership-filtered Atlas retrieval without displaying document data.
 
 ## Security Model
 

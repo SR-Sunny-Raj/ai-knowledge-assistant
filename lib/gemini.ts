@@ -3,16 +3,7 @@ import 'server-only';
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import { requireCompleteAnswer } from '@/lib/generation-response';
 
-const EMBEDDING_DIMENSIONS = 768;
-const EMBEDDING_BATCH_SIZE = 20;
-const MAX_EMBEDDING_ATTEMPTS = 4;
-const DEFAULT_RETRY_DELAY_MS = 2_000;
-const MAX_RETRY_DELAY_MS = 60_000;
-const MIN_EMBEDDING_INTERVAL_MS = 750;
-
 let client: GoogleGenAI | null = null;
-let embeddingQueue: Promise<void> = Promise.resolve();
-let lastEmbeddingRequestAt = 0;
 
 function getClient() {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -24,138 +15,6 @@ function getClient() {
   client ??= new GoogleGenAI({ apiKey });
 
   return client;
-}
-
-function getEmbeddingModel() {
-  return process.env.GEMINI_EMBEDDING_MODEL ?? 'gemini-embedding-001';
-}
-
-function wait(milliseconds: number) {
-  return new Promise<void>((resolve) => {
-    setTimeout(resolve, milliseconds);
-  });
-}
-
-async function scheduleEmbeddingRequest<T>(
-  request: () => Promise<T>,
-): Promise<T> {
-  const scheduledRequest = embeddingQueue.then(async () => {
-    const elapsed = Date.now() - lastEmbeddingRequestAt;
-    const remainingDelay = Math.max(MIN_EMBEDDING_INTERVAL_MS - elapsed, 0);
-
-    if (remainingDelay > 0) {
-      await wait(remainingDelay);
-    }
-
-    lastEmbeddingRequestAt = Date.now();
-
-    return request();
-  });
-
-  embeddingQueue = scheduledRequest.then(
-    () => undefined,
-    () => undefined,
-  );
-
-  return scheduledRequest;
-}
-
-function getRetryDelayMs(error: unknown, attempt: number) {
-  const message = error instanceof Error ? error.message : '';
-  const retryMatch =
-    message.match(/retry in ([\d.]+)s/i) ??
-    message.match(/"retryDelay":"([\d.]+)s"/i);
-
-  if (retryMatch) {
-    const seconds = Number.parseFloat(retryMatch[1]);
-
-    if (Number.isFinite(seconds)) {
-      return Math.min(Math.ceil(seconds * 1000) + 1000, MAX_RETRY_DELAY_MS);
-    }
-  }
-
-  return Math.min(DEFAULT_RETRY_DELAY_MS * 2 ** attempt, MAX_RETRY_DELAY_MS);
-}
-
-async function embedBatch(
-  texts: string[],
-  taskType: 'RETRIEVAL_DOCUMENT' | 'RETRIEVAL_QUERY',
-  title?: string,
-) {
-  for (let attempt = 0; attempt < MAX_EMBEDDING_ATTEMPTS; attempt += 1) {
-    try {
-      const response = await scheduleEmbeddingRequest(() =>
-        getClient().models.embedContent({
-          model: getEmbeddingModel(),
-          contents: texts,
-          config: {
-            taskType,
-            outputDimensionality: EMBEDDING_DIMENSIONS,
-            ...(title ? { title } : {}),
-          },
-        }),
-      );
-
-      if (!response.embeddings || response.embeddings.length !== texts.length) {
-        throw new Error('Gemini returned an incomplete embedding response.');
-      }
-
-      return response.embeddings.map((embedding) => {
-        const values = embedding.values;
-
-        if (!values || values.length !== EMBEDDING_DIMENSIONS) {
-          throw new Error('Gemini returned an invalid embedding vector.');
-        }
-
-        return values;
-      });
-    } catch (error) {
-      const isLastAttempt = attempt === MAX_EMBEDDING_ATTEMPTS - 1;
-
-      if (!isRetryableApiError(error) || isLastAttempt) {
-        throw error;
-      }
-
-      const retryDelayMs = getRetryDelayMs(error, attempt);
-
-      console.warn(
-        `Gemini embedding request was throttled. Retrying in ${Math.ceil(
-          retryDelayMs / 1000,
-        )} seconds.`,
-      );
-
-      await wait(retryDelayMs);
-    }
-  }
-
-  throw new Error('Gemini embedding retry loop ended unexpectedly.');
-}
-
-export async function embedDocumentChunks(
-  texts: string[],
-  documentTitle: string,
-) {
-  const embeddings: number[][] = [];
-
-  for (let start = 0; start < texts.length; start += EMBEDDING_BATCH_SIZE) {
-    const batch = texts.slice(start, start + EMBEDDING_BATCH_SIZE);
-
-    const batchEmbeddings = await embedBatch(
-      batch,
-      'RETRIEVAL_DOCUMENT',
-      documentTitle,
-    );
-
-    embeddings.push(...batchEmbeddings);
-  }
-
-  return embeddings;
-}
-
-export async function embedQuery(query: string) {
-  const [embedding] = await embedBatch([query], 'RETRIEVAL_QUERY');
-
-  return embedding;
 }
 
 type GroundingSource = {
@@ -185,10 +44,6 @@ function getApiErrorStatus(error: unknown) {
   const status = (error as { status?: unknown }).status;
 
   return typeof status === 'number' ? status : null;
-}
-
-export function isGeminiRateLimitError(error: unknown) {
-  return getApiErrorStatus(error) === 429;
 }
 
 function isRetryableApiError(error: unknown) {

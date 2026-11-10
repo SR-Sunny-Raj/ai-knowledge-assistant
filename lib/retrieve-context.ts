@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { connectToDatabase } from './db';
-import { embedQuery } from './gemini';
+import { embedQuery } from './cloudflare-embeddings';
 import { DocumentChunkModel } from '../models/document-chunk';
 
 const DEFAULT_MINIMUM_SCORE = 0.7;

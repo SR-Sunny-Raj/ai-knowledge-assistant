@@ -6,8 +6,8 @@ import { DocumentChunkModel } from '../../../models/document-chunk';
 import { getCurrentUser } from '../../../lib/session';
 import {
   embedDocumentChunks,
-  isGeminiRateLimitError,
-} from '../../../lib/gemini';
+  isEmbeddingRateLimitError,
+} from '../../../lib/cloudflare-embeddings';
 
 const MAX_FILE_SIZE = 4 * 1024 * 1024;
 
@@ -21,7 +21,7 @@ function unauthorizedResponse() {
   );
 }
 
-async function processPdf(data: Uint8Array, fileName: string) {
+async function processPdf(data: Uint8Array) {
   const { parsePdf } = await import('../../../lib/parse-pdf');
   const parsedPdf = await parsePdf(data);
   const chunks = chunkPages(parsedPdf.pages);
@@ -32,7 +32,6 @@ async function processPdf(data: Uint8Array, fileName: string) {
 
   const embeddings = await embedDocumentChunks(
     chunks.map((chunk) => chunk.content),
-    fileName,
   );
 
   return { parsedPdf, chunks, embeddings };
@@ -146,17 +145,17 @@ export async function POST(request: Request) {
     let processedPdf: Awaited<ReturnType<typeof processPdf>>;
 
     try {
-      processedPdf = await processPdf(data, file.name);
+      processedPdf = await processPdf(data);
     } catch (processingError) {
       console.error('PDF processing failed:', processingError);
 
-      const isRateLimited = isGeminiRateLimitError(processingError);
+      const isRateLimited = isEmbeddingRateLimitError(processingError);
 
       return NextResponse.json(
         {
           success: false,
           message: isRateLimited
-            ? 'The embedding service is temporarily rate-limited. Please retry shortly.'
+            ? 'The embedding service has reached its daily limit. Please retry later.'
             : 'The PDF could not be processed.',
         },
         { status: isRateLimited ? 429 : 422 },
