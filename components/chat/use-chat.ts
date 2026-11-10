@@ -13,7 +13,7 @@ type UseChatOptions = Readonly<{
   initialMessages?: ChatMessage[];
 }>;
 
-const REQUEST_TIMEOUT_MS = 45_000;
+const REQUEST_TIMEOUT_MS = 90_000;
 
 export function useChat({
   initialConversationId = null,
